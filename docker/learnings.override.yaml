@@ -1,0 +1,8 @@
+# Mounts this repo at /workspace/learnings. The source path resolves against IsaacLab/docker,
+# so IsaacLab and Isaac_lab_learnings must be sibling folders.
+services:
+  isaac-lab-base:
+    volumes:
+      - type: bind
+        source: ../../Isaac_lab_learnings
+        target: /workspace/learnings

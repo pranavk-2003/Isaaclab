@@ -1,0 +1,13 @@
+third_party/
+assets/**/*.usd
+assets/**/*.usda
+assets/**/*.urdf
+outputs/
+datasets/
+*.hdf5
+wandb/
+__pycache__/
+*.egg-info/
+private/
+assets/urdf_build/
+*.bundle

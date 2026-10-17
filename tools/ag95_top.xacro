@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<robot name="ag95_only" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:include filename="/workspace/learnings/third_party/dh_ag95_gripper_ros2/dh_ag95_description/urdf/dh_ag95_macro.xacro"/>
+  <!-- Placeholder parent; tools/build_urdf.py replaces it with the arm's link_6. -->
+  <link name="link_6"/>
+  <xacro:dh_ag95_gripper prefix="" parent="link_6">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:dh_ag95_gripper>
+</robot>
