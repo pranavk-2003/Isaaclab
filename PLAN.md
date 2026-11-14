@@ -10,6 +10,8 @@ Written 2026-10-17 against **Isaac Lab 2.3.2 / Isaac Sim 5.1.0** (docker image `
 
 **Revised 2026-11-07: the project moves to Isaac Lab 3.0.0 / Isaac Sim 6.2.0** (container `isaac-lab-3`, D15). Phases 0–2.2 below are the record of the first pass on 2.3.2. Phase M (after Phase 2) installs the new stack, ports the extension and re-runs Phases 0–2.2 on it with the old numbers as the comparison. Phase 2.3 and everything after it run on 3.0, and their commands are written for 3.0. Work order: 0 → 1 → 2.1–2.2 (done) → **M** → 2.3 → 3 → … .
 
+**Update 2026-11-14: Phase M is done and D16 is approved.** The project runs on Isaac Lab 3.0 / Isaac Sim 6.2 with a two-engine workflow (train contact-free tasks on Newton, validate on PhysX). Every Phase 1–2.2 gate was re-run on 3.0 (see D16 and README for the numbers). Commands inside Phases 0–2.2 and M below are the 2.3.2-era ones kept as the record; `README.md` has the current, tested commands. Next: 2.3 (IK-Rel), then 3.
+
 ---
 
 ## 0. How to use this plan — **Pranav drives, the agent is the companion**

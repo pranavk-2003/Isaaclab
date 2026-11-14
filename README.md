@@ -18,7 +18,7 @@ are below. This is an independent project; see [NOTICE.md](NOTICE.md).
 | 0 | Workspace, container mount, extension package | done |
 | 1 | Digital twin of the A0509 + AG95: composition, articulation config, grasp test, joint sweep, URDF-from-scratch comparison | done, reproduced on 3.0 |
 | 2 | Reach with PPO, joint-position actions | done: **4.9 mm** mean position error on 3.0 (4.5 mm on 2.3.2) |
-| M | Migration to Isaac Lab 3.0 / Isaac Sim 6.2, with a Newton physics probe | evidence collected; proposed: train on Newton, validate on PhysX (D16 in [DECISIONS.md](DECISIONS.md)), awaiting final approval |
+| M | Migration to Isaac Lab 3.0 / Isaac Sim 6.2, with a Newton physics probe | done: moved to 3.0; train on Newton, validate on PhysX (D16 in [DECISIONS.md](DECISIONS.md)) |
 | 2.3 | Reach with differential-IK actions, compared against joint-position actions | next |
 | 3 – 9 | Lift + cameras, teleop + Mimic, BC, SmolVLA, Cosmos Reason, GR00T, real robot | planned, see [PLAN.md](PLAN.md) |
 

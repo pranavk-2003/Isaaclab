@@ -16,10 +16,11 @@ Pranav wants to **learn step by step, looped in at every step**. Working mode:
 ## Rules
 - Guide `PLAN.md` step by step. Don't skip or relax gates, and don't move on until the current gate is logged in `PROGRESS.md` (by Pranav) with real numbers.
 - If a gate fails 3 times, pause: help Pranav log what was tried, then go back to the concept.
-- **Never modify `~/pranav_ws/IsaacLab/`** (that's NVIDIA's repo; read it as the reference for APIs) **or the original reference USDs** (copy the A0509 and AG95 folders into `assets/`, nothing else).
-- **Verify every Isaac Lab API by grepping the local source** (Isaac Lab 2.3.2, Isaac Sim 5.1.0) before using it. Don't write Isaac Lab code from memory.
+- **Never modify `~/pranav_ws/IsaacLab3/` (Isaac Lab 3.0.0, the current reference) or `~/pranav_ws/IsaacLab/` (2.3.2, the old one)**: they are NVIDIA's repos; read them as the reference for APIs. Same for **the original reference USDs** (copy the A0509 and AG95 folders into `assets/`, nothing else).
+- **Verify every Isaac Lab API by grepping the local source** (`~/pranav_ws/IsaacLab3`, tag `v3.0.0`, Isaac Sim 6.2.0) before using it. Quaternions are (x, y, z, w) on 3.0; asset data is read with `.torch`; writes use the `_index` methods (D16). Don't write Isaac Lab code from memory.
 - For GR00T / Cosmos / LeRobot / SmolVLA, check the current docs (context7 or web) when the phase starts, and record the versions in `DECISIONS.md`.
-- Isaac Sim runs **only** inside the `isaac-lab-base` container, which Pranav starts with `scripts/start_container.sh` (the override mounts this repo at `/workspace/learnings`). After any container recreation, remind Pranav to run `scripts/setup_container.sh` inside it.
+- Isaac Sim runs **only** inside the `isaac-lab-3` container (Isaac Lab 3.0, `docker compose -f docker/isaaclab3.compose.yaml up -d`; it mounts this repo at `/workspace/learnings`). After any container recreation, remind Pranav to run `scripts/setup_container3.sh` inside it. Inside the container: `source /opt/isaaclab-venv/bin/activate`, then `isaaclab -p <script>` or `isaaclab train|play --rl_library rsl_rl`. The 2.3.2 container `isaac-lab-base` is the fallback until the Phase 3 lift task passes on 3.0; never touch other people's containers.
+- **Two engines (D16):** train contact-free tasks on Newton (`physics=newton_mjwarp`); every policy must pass its gate on PhysX (`scripts/validate_policy.sh`) before it counts. Code defaults stay PhysX. Contact tasks train on Newton only after the Newton grasp test (PLAN 3.1).
 - Training is headless. The GUI is for 👤 visual gates.
 - The GPU has 12 GB. Start new tasks at `--num_envs 1024`, and keep cameras out of RL-training variants.
 - After each phase Pranav writes `notes/NN_<phase>.md`. You review it and quiz Pranav with the COOKBOOK self-check questions. When Pranav asks "why", explain. Don't just fix.
