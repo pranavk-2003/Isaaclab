@@ -1,7 +1,7 @@
 """Sweep each arm joint through +-A and back, one at a time, and print how the gripper moves.
 
-    ./isaaclab.sh -p /workspace/learnings/scripts/sweep_joints.py                 # GUI, stays open at the end
-    ./isaaclab.sh -p /workspace/learnings/scripts/sweep_joints.py --headless      # numbers only
+    isaaclab -p /workspace/learnings/scripts/sweep_joints.py --visualizer kit     # GUI, stays open at the end
+    isaaclab -p /workspace/learnings/scripts/sweep_joints.py                      # numbers only
 
 No ground plane by default: with the base at z=0 the gripper hits the floor once joint_2 leans past ~44 deg.
 Self-collisions are off, so links passing through each other are expected.
@@ -10,15 +10,14 @@ Self-collisions are off, so links passing through each other are expected.
 import argparse
 import math
 
-from isaaclab.app import AppLauncher
+from isaaclab.app import add_launcher_args, launch_simulation
 
 parser = argparse.ArgumentParser(description="Sweep each A0509 arm joint through +-A and back.")
 parser.add_argument("--amplitude_deg", type=float, default=60.0)
 parser.add_argument("--period", type=float, default=6.0, help="Seconds per joint for one full -A..+A cycle.")
 parser.add_argument("--ground", action="store_true", help="Add the ground plane (default: none, so the floor cannot block a joint).")
-AppLauncher.add_app_launcher_args(parser)
+add_launcher_args(parser)
 args_cli = parser.parse_args()
-simulation_app = AppLauncher(args_cli).app
 
 import torch
 
@@ -39,30 +38,29 @@ def dominant(v: torch.Tensor) -> str:
     return f"{'+' if v[i] >= 0 else '-'}{AXES[i]}"
 
 
-def main():
-    sim = SimulationContext(sim_utils.SimulationCfg(dt=DT, device=args_cli.device))
+def run_test(sim_cfg):
+    sim = SimulationContext(sim_cfg)
     sim.set_camera_view([1.8, -1.8, 1.4], [0.2, 0.0, 0.5])
     if args_cli.ground:
         sim_utils.GroundPlaneCfg().func("/World/defaultGroundPlane", sim_utils.GroundPlaneCfg())
     light = sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75))
     light.func("/World/Light", light)
 
-    cfg = DOOSAN_A0509_AG95_CFG.copy()
-    cfg.prim_path = "/World/Robot"
-    robot = Articulation(cfg=cfg)
+    robot = Articulation(cfg=DOOSAN_A0509_AG95_CFG.replace(prim_path="/World/Robot"))
     sim.reset()
 
     arm_ids, _ = robot.find_joints("joint_[1-6]")
     base = robot.find_bodies("ag95_base_link")[0][0]
     pad = robot.find_bodies("left_finger_pad")[0][0]
-    default = robot.data.default_joint_pos.clone()
-    robot.write_joint_state_to_sim(default, torch.zeros_like(default))
+    default = robot.data.default_joint_pos.torch.clone()
+    robot.write_joint_position_to_sim_index(position=default)
+    robot.write_joint_velocity_to_sim_index(velocity=torch.zeros_like(default))
     robot.reset()
     z_axis = torch.tensor([0.0, 0.0, 1.0], device=sim.device)
 
     def points():
         """TCP (grasp point, 0.19 m along the approach axis) and the left pad origin, in the world frame."""
-        p, q = robot.data.body_pos_w[0], robot.data.body_quat_w[0]
+        p, q = robot.data.body_pos_w.torch[0], robot.data.body_quat_w.torch[0]
         return p[base] + 0.19 * quat_apply(q[base], z_axis), p[pad].clone()
 
     amp = math.radians(args_cli.amplitude_deg)
@@ -78,11 +76,11 @@ def main():
         for k in range(steps):
             target = default.clone()
             target[:, jid] += amp * math.sin(2 * math.pi * k / steps)
-            robot.set_joint_position_target(target)
+            robot.set_joint_position_target_index(target=target)
             robot.write_data_to_sim()
             sim.step()
             robot.update(DT)
-            q = (robot.data.joint_pos[0, jid] - default[0, jid]).item()
+            q = (robot.data.joint_pos.torch[0, jid] - default[0, jid]).item()
             if k == steps // 4:
                 at_plus, reached_plus = points(), q
             if k == 3 * steps // 4:
@@ -91,7 +89,7 @@ def main():
         d_pad = at_plus[1] - at_minus[1]
         moved = max(d_tcp.norm().item(), d_pad.norm().item())
         reached = min(reached_plus, -reached_minus) / amp
-        finite = bool(torch.isfinite(robot.data.joint_pos).all())
+        finite = bool(torch.isfinite(robot.data.joint_pos.torch).all())
         ok &= finite and moved > 1e-3 and reached > 0.9
         rows.append((j + 1, reached_plus, reached_minus, d_tcp, d_pad, moved, reached))
 
@@ -102,17 +100,21 @@ def main():
     print("[INFO] joint_6 turns the gripper about its own approach axis, so the TCP stays put and only the pad moves.")
     print(f"GATE 1.5 joint sweep (numbers): {'PASS' if ok else 'FAIL'} (every joint reached >=90% of +-{args_cli.amplitude_deg:.0f} deg and moved something)")
 
-    if not args_cli.headless:
+    if args_cli.visualizer and "kit" in str(args_cli.visualizer):
         print("[INFO] done. The window stays open: look around, then close it.")
-        while simulation_app.is_running():
+        while sim.is_running():
             sim.step()
             robot.update(DT)
 
-    del robot
-    sim.clear_all_callbacks()
+    del robot  # release the articulation before the simulation closes (D8)
     sim.clear_instance()
+
+
+def main():
+    sim_cfg = sim_utils.SimulationCfg(dt=DT, device=args_cli.device)
+    with launch_simulation(sim_cfg, args_cli):
+        run_test(sim_cfg)
 
 
 if __name__ == "__main__":
     main()
-    simulation_app.close()

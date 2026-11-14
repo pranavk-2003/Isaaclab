@@ -1,6 +1,6 @@
 """Measure the AG95: opening vs joint angle, pad parallelism, and squeeze force per N m of drive torque.
 
-    ./isaaclab.sh -p /workspace/learnings/scripts/measure_gripper.py --headless
+    isaaclab -p /workspace/learnings/scripts/measure_gripper.py
 
 Virtual work: the driver applies torque tau through a small angle dq while the pads close by dW (total opening change),
 so the squeeze force between the pads is  F = tau / |dW/dq|.
@@ -8,15 +8,14 @@ so the squeeze force between the pads is  F = tau / |dW/dq|.
 
 import argparse
 
-from isaaclab.app import AppLauncher
+from isaaclab.app import add_launcher_args, launch_simulation
 
 parser = argparse.ArgumentParser(description="Measure the AG95 geometry and squeeze force per torque.")
 parser.add_argument("--gap0", type=float, default=0.0952,
                     help="Gap between the pad inner faces at q=0, measured from the collision meshes (m).")
 parser.add_argument("--force", type=float, default=100.0, help="Target squeeze force for the suggestion (N); AG95: 45-160 N.")
-AppLauncher.add_app_launcher_args(parser)
+add_launcher_args(parser)
 args_cli = parser.parse_args()
-simulation_app = AppLauncher(args_cli).app
 
 import torch
 
@@ -27,15 +26,14 @@ from isaaclab.utils.math import quat_apply_inverse, quat_conjugate, quat_error_m
 
 from doosan_lab.assets.doosan import DOOSAN_A0509_AG95_CFG
 
+DT = 1.0 / 120.0
 Q_MAX = 0.93  # driven joint range 0..0.93 rad
 
 
-def main():
-    sim = SimulationContext(sim_utils.SimulationCfg(dt=1.0 / 120.0, device=args_cli.device))
+def run_test(sim_cfg):
+    sim = SimulationContext(sim_cfg)
     sim_utils.create_prim("/World/Origin0", "Xform")
-    cfg = DOOSAN_A0509_AG95_CFG.copy()
-    cfg.prim_path = "/World/Origin0/Robot"
-    robot = Articulation(cfg=cfg)
+    robot = Articulation(cfg=DOOSAN_A0509_AG95_CFG.replace(prim_path="/World/Origin0/Robot"))
     sim.reset()
     dt = sim.get_physics_dt()
 
@@ -43,18 +41,19 @@ def main():
     base = robot.find_bodies("ag95_base_link")[0][0]
     left = robot.find_bodies("left_finger_pad")[0][0]
     right = robot.find_bodies("right_finger_pad")[0][0]
-    default = robot.data.default_joint_pos.clone()
+    default = robot.data.default_joint_pos.torch.clone()
 
     def pose_at(q: float):
         """Set all six gripper joints to q; return pad positions and orientations in the gripper frame."""
         state = default.clone()
         state[:, grip_ids] = q
-        robot.write_joint_state_to_sim(state, torch.zeros_like(state))
-        robot.set_joint_position_target(state)
+        robot.write_joint_position_to_sim_index(position=state)
+        robot.write_joint_velocity_to_sim_index(velocity=torch.zeros_like(state))
+        robot.set_joint_position_target_index(target=state)
         robot.write_data_to_sim()
         sim.step()
         robot.update(dt)
-        p, quat = robot.data.body_pos_w[0], robot.data.body_quat_w[0]
+        p, quat = robot.data.body_pos_w.torch[0], robot.data.body_quat_w.torch[0]
         pl = quat_apply_inverse(quat[base], p[left] - p[base])
         pr = quat_apply_inverse(quat[base], p[right] - p[base])
         rot_l = quat_mul(quat_conjugate(quat[base]), quat[left])
@@ -88,7 +87,7 @@ def main():
         print(f"[INFO] at q={q}: d(gap)/dq = {slope * 1000:.1f} mm/rad -> squeeze force per N m of drive torque = {1 / abs(slope):.1f} N/(N m)")
     slope = (gap_at(0.5 + d) - gap_at(0.5 - d)) / (2 * d)
     tau = args_cli.force * abs(slope)
-    limit = robot.actuators["gripper_drive"].effort_limit.flatten()[0].item()
+    limit = robot.data.joint_effort_limits.torch[0, robot.find_joints("left_outer_knuckle_joint")[0][0]].item()
     print(f"[INFO] for {args_cli.force:.0f} N of squeeze (AG95 range 45-160 N) the driver torque limit should be about {tau:.2f} N m "
           f"(the config allows {limit:.1f} N m = {limit / abs(slope):.0f} N)")
     print(f"[INFO] gap that a 40 mm cube needs: {40:.0f} mm -> driven joint about "
@@ -96,11 +95,15 @@ def main():
     max_tilt = max(max(r[2], r[3]) for r in rows)
     print(f"GATE 1.4b pads stay parallel: {'PASS' if max_tilt < 5.0 else 'FAIL'} (max pad tilt {max_tilt:.2f} deg over the full stroke, limit 5 deg)")
 
-    del robot
-    sim.clear_all_callbacks()
+    del robot  # release the articulation before the simulation closes (D8)
     sim.clear_instance()
+
+
+def main():
+    sim_cfg = sim_utils.SimulationCfg(dt=DT, device=args_cli.device)
+    with launch_simulation(sim_cfg, args_cli):
+        run_test(sim_cfg)
 
 
 if __name__ == "__main__":
     main()
-    simulation_app.close()
