@@ -13,8 +13,8 @@ Parts of this repository follow or adapt code from Isaac Lab, which is released 
 - `source/doosan_lab/doosan_lab/tasks/reach/reach_env_cfg.py` (extends `ReachEnvCfg`; follows the UR10 reach config)
 - `source/doosan_lab/doosan_lab/assets/doosan.py` (follows `isaaclab_assets/robots/universal_robots.py`)
 - `scripts/spawn_robot.py`, `scripts/sweep_joints.py`, `scripts/test_gripper.py` (follow the tutorials in `scripts/tutorials/`)
-- `scripts/eval_reach.py` (follows `scripts/reinforcement_learning/rsl_rl/play.py`)
-- `scripts/train.py`, `scripts/play.py` read Isaac Lab's own scripts at run time; no Isaac Lab code is copied.
+- `scripts/eval_reach.py` (follows the RSL-RL play entrypoint, `isaaclab_rl/entrypoints/backends/play_rsl_rl.py`)
+- Training and playback use Isaac Lab's own `isaaclab train` / `isaaclab play` commands; no Isaac Lab code is copied for them.
 
 ## Not included
 
