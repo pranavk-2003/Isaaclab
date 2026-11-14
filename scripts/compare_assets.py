@@ -63,6 +63,9 @@ def describe(path: str) -> dict:
                     gear = p.GetAttribute(f"physxMimicJoint:{axis}:gearing").Get()
                     off = p.GetAttribute(f"physxMimicJoint:{axis}:offset").Get()
                     info["mimic"] = (ref[0].name if ref else None, gear, off)
+                elif schema == "NewtonMimicAPI":  # written by the 3.0 URDF importer; PhysX reads it too, with default coefficients
+                    ref = p.GetRelationship("newton:mimicJoint").GetTargets()
+                    info["mimic"] = (ref[0].name if ref else None, "newton schema", None)
             out["joints"][p.GetName()] = info
     return out
 

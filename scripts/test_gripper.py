@@ -21,6 +21,7 @@ parser.add_argument("--num_trials", type=int, default=20)
 parser.add_argument("--mass", type=float, default=0.05, help="Cube mass in kg.")
 parser.add_argument("--friction", type=float, default=1.0, help="Friction of the cube and the support (pads: see the USD).")
 parser.add_argument("--seed", type=int, default=0)
+parser.add_argument("--usd", default=None, help="Test this USD instead of the composed asset (e.g. one built from the URDF).")
 add_launcher_args(parser)
 args_cli = parser.parse_args()
 
@@ -80,7 +81,7 @@ def run_test(sim_cfg):
     )
     support = sim_utils.CuboidCfg(  # no rigid_props: a static collider
         size=(0.30, 0.30, 0.20),
-        collision_props=sim_utils.CollisionPropertiesCfg(),
+        collision_props=sim_utils.UsdPhysicsCollisionCfg(),
         physics_material=material,
         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.35, 0.35, 0.40)),
     )
@@ -89,15 +90,16 @@ def run_test(sim_cfg):
     cube_spawn = sim_utils.CuboidCfg(
         size=(CUBE, CUBE, CUBE),
         rigid_props=PhysxRigidBodyCfg(),
-        mass_props=sim_utils.MassPropertiesCfg(mass=args_cli.mass),
-        collision_props=sim_utils.CollisionPropertiesCfg(),
+        mass_props=sim_utils.MassCfg(mass=args_cli.mass),
+        collision_props=sim_utils.UsdPhysicsCollisionCfg(),
         physics_material=material,
         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.85, 0.15, 0.10)),
     )
     spawn_each(cube_spawn, "Cube")
     cube = RigidObject(cfg=RigidObjectCfg(prim_path="/World/envs/env_.*/Cube", spawn=None))  # spawned above
 
-    spawn_each(DOOSAN_A0509_AG95_CFG.spawn, "Robot")
+    robot_spawn = DOOSAN_A0509_AG95_CFG.spawn.replace(usd_path=args_cli.usd) if args_cli.usd else DOOSAN_A0509_AG95_CFG.spawn
+    spawn_each(robot_spawn, "Robot")
     robot = Articulation(cfg=DOOSAN_A0509_AG95_CFG.replace(prim_path="/World/envs/env_.*/Robot", spawn=None))
 
     sim.reset()

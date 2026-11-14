@@ -42,3 +42,12 @@ class A0509ReachPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 @configclass
 class A0509ReachIKRelPPORunnerCfg(A0509ReachPPORunnerCfg):
     experiment_name = "reach_a0509_ik_rel"
+    # Random exploration through IK makes the arm thrash (joint speeds of hundreds of rad/s); without observation
+    # normalization PPO diverged to NaN within about 20 iterations. The joint-position run does not need it.
+    actor = RslRlMLPModelCfg(
+        hidden_dims=[64, 64],
+        activation="elu",
+        obs_normalization=True,
+        distribution_cfg=RslRlMLPModelCfg.GaussianDistributionCfg(init_std=1.0),
+    )
+    critic = RslRlMLPModelCfg(hidden_dims=[64, 64], activation="elu", obs_normalization=True)
