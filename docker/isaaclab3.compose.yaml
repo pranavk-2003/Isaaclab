@@ -13,7 +13,7 @@ services:
       - ..:/workspace/learnings
       - ../../isaaclab3_logs:/workspace/isaaclab/logs
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ${XAUTHORITY}:/tmp/.Xauthority:ro
+      - ${XAUTHORITY:-/dev/null}:/tmp/.Xauthority:ro   # only the GUI needs it; headless runs work without
       - kit-cache:/isaac-sim/kit/cache
       - ov-cache:/root/.cache/ov
       - gl-cache:/root/.cache/nvidia/GLCache

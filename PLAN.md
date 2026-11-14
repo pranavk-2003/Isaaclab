@@ -487,8 +487,9 @@ Then **return to Phase 2.3** on 3.0.
 - Register `Doosan-Lift-Cube-A0509-v0` (joint pos) and `Doosan-Lift-Cube-A0509-IK-Rel-v0`.
 
 **Gate:**
-- Joint-pos variant: success (cube lifted and tracking the goal, read from the metrics/`object_goal_tracking` reward) ≥ **80 %** over 100 eval episodes.
+- Joint-pos variant: success (cube lifted and tracking the goal, read from the metrics/`object_goal_tracking` reward) ≥ **80 %** over 100 eval episodes, **measured on PhysX**.
 - 👤 Video looks like a real grasp, not the cube being pushed or flicked.
+- **Newton gate (D16, option B), before any Newton-trained lift policy counts:** (1) a scripted grasp-and-lift (the Phase 1.4 test, as a task) holds at least 19/20 with `physics=newton_mjwarp`; (2) check that the 3.2 cameras and the Phase 4 Mimic tools run on Newton at all. If either fails, lift training stays on PhysX.
 
 If it's stuck after 3 reward-tuning attempts, stop and ask. Grasp RL is genuinely hard, and that's a finding worth writing down, not a failure.
 
