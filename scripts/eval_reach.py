@@ -1,7 +1,7 @@
 """Evaluate a reach policy, with the policy's MEAN action and with SAMPLED actions (as during training).
 
-    ./isaaclab.sh -p /workspace/learnings/scripts/eval_reach.py --headless                 # latest checkpoint
-    ./isaaclab.sh -p /workspace/learnings/scripts/eval_reach.py --headless --checkpoint /path/model_300.pt
+    /opt/isaaclab-venv/bin/python /workspace/learnings/scripts/eval_reach.py                       # latest checkpoint
+    /opt/isaaclab-venv/bin/python /workspace/learnings/scripts/eval_reach.py --checkpoint /path/model_300.pt
 
 Every target is held for 4 s (120 policy steps at 30 Hz). Metrics cover the last second of each target:
   pos_err / ori_err   how far the gripper is from the target
@@ -12,59 +12,47 @@ GATE 2.2 uses the deterministic (mean-action) numbers.
 """
 
 import argparse
+import os
 import sys
 
-from isaaclab.app import AppLauncher
+import gymnasium as gym
+import torch
 
-RSL_DIR = "/workspace/isaaclab/scripts/reinforcement_learning/rsl_rl"
-sys.path.insert(0, RSL_DIR)
-import cli_args  # isort: skip
+from isaaclab.app import add_launcher_args, launch_simulation
+from isaaclab.utils.assets import retrieve_file_path
+from isaaclab.utils.math import euler_xyz_from_quat
+
+from isaaclab_rl.rsl_rl import (
+    RslRlVecEnvWrapper,
+    check_rsl_rl_version,
+    create_rsl_rl_runner,
+    handle_deprecated_rsl_rl_cfg,
+)
+
+import isaaclab_tasks  # noqa: F401
+from isaaclab_tasks.utils import get_checkpoint_path, resolve_task_config, setup_preset_cli
+
+import doosan_lab.tasks  # noqa: F401  (registers the Doosan-* tasks)
+
+TARGET_STEPS = 120  # a new target every 4 s at 30 Hz (the task's resampling_time_range)
+WINDOW = 30  # the last second of each target
 
 parser = argparse.ArgumentParser(description="Evaluate a reach policy: mean action vs sampled action.")
 parser.add_argument("--task", type=str, default="Doosan-Reach-A0509-Play-v0")
 parser.add_argument("--agent", type=str, default="rsl_rl_cfg_entry_point")
 parser.add_argument("--num_envs", type=int, default=256)
 parser.add_argument("--episodes", type=int, default=2, help="12 s episodes = 3 targets each, per environment.")
-cli_args.add_rsl_rl_args(parser)
-AppLauncher.add_app_launcher_args(parser)
-args_cli, hydra_args = parser.parse_known_args()
+parser.add_argument("--checkpoint", type=str, default=None, help="Defaults to the latest checkpoint of the experiment.")
+parser.add_argument("--legacy_quat_obs", action="store_true", help="Reorder the command quaternion to (w, x, y, z) for a policy trained on 2.3.2.")
+add_launcher_args(parser)
+args_cli, hydra_args = setup_preset_cli(parser)
 sys.argv = [sys.argv[0]] + hydra_args
-simulation_app = AppLauncher(args_cli).app
-
-import importlib.metadata as metadata
-import os
-
-import gymnasium as gym
-import torch
-from rsl_rl.runners import OnPolicyRunner
-
-from isaaclab.utils.assets import retrieve_file_path
-from isaaclab.utils.math import euler_xyz_from_quat
-
-from isaaclab_rl.rsl_rl import (
-    RslRlBaseRunnerCfg,
-    RslRlVecEnvWrapper,
-    handle_deprecated_rsl_rl_cfg,
-    handle_deprecated_rsl_rl_checkpoint,
-)
-
-import isaaclab_tasks  # noqa: F401
-from isaaclab_tasks.utils import get_checkpoint_path
-from isaaclab_tasks.utils.hydra import hydra_task_config
-
-import doosan_lab.tasks  # noqa: F401  (registers the Doosan-* tasks)
-
-installed_version = metadata.version("rsl-rl-lib")
-TARGET_STEPS = 120  # a new target every 4 s at 30 Hz (the task's resampling_time_range)
-WINDOW = 30  # the last second of each target
 
 
-@hydra_task_config(args_cli.task, args_cli.agent)
-def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg):
-    agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
-    agent_cfg = handle_deprecated_rsl_rl_cfg(agent_cfg, installed_version)
+def evaluate(env_cfg, agent_cfg):
+    """Runs inside the launched simulation; every robot and env reference stays local so it is released before close."""
+    agent_cfg = handle_deprecated_rsl_rl_cfg(agent_cfg, check_rsl_rl_version())
     env_cfg.scene.num_envs = args_cli.num_envs
-    env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
 
     log_root = os.path.abspath(os.path.join("logs", "rsl_rl", agent_cfg.experiment_name))
     if args_cli.checkpoint:
@@ -74,8 +62,8 @@ def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg):
     print(f"[INFO] checkpoint: {resume_path}")
 
     env = RslRlVecEnvWrapper(gym.make(args_cli.task, cfg=env_cfg), clip_actions=agent_cfg.clip_actions)
-    runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
-    runner.load(handle_deprecated_rsl_rl_checkpoint(resume_path, installed_version))
+    runner = create_rsl_rl_runner(env, agent_cfg)
+    runner.load(resume_path)
     mean_policy = runner.get_inference_policy(device=env.unwrapped.device)  # deterministic: the mean action
     actor = runner.alg.actor
 
@@ -102,8 +90,8 @@ def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg):
             if k % TARGET_STEPS >= TARGET_STEPS - WINDOW and k % 360 != 359:
                 buf["pos_err"].append(command.metrics["position_error"].clone())
                 buf["ori_err"].append(command.metrics["orientation_error"].clone())
-                buf["ee"].append(robot.data.body_pos_w[:, ee].clone())
-                buf["vel"].append(robot.data.joint_vel[:, arm_ids].clone())
+                buf["ee"].append(robot.data.body_pos_w.torch[:, ee].clone())
+                buf["vel"].append(robot.data.joint_vel.torch[:, arm_ids].clone())
                 buf["act"].append(actions.clone())
             if k % TARGET_STEPS == TARGET_STEPS - 1 and buf["ee"]:
                 ee_pos = torch.stack(buf["ee"])  # (window, envs, 3)
@@ -118,8 +106,16 @@ def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg):
                 buf = {key: [] for key in buf}
         return {key: torch.cat(value) for key, value in windows.items()}  # target: (windows*envs, 4) = x, y, z, yaw
 
+    def with_legacy_quat(policy):  # a 2.3.2 policy saw the command quaternion as (w, x, y, z); 3.0 stores (x, y, z, w)
+        def shimmed(obs):
+            obs = obs.clone()
+            obs["policy"][:, 15:19] = obs["policy"][:, [18, 15, 16, 17]]  # columns: joint_pos 6, joint_vel 6, command 3 + 4
+            return policy(obs)
+
+        return shimmed
+
     for label, policy in (("mean action", mean_policy), ("sampled action", sampled_policy)):
-        results[label] = run(policy)
+        results[label] = run(with_legacy_quat(policy) if args_cli.legacy_quat_obs else policy)
 
     print(f"\nEVAL {n} environments x {args_cli.episodes * 3} targets each = {n * args_cli.episodes * 3} settled windows (last 1 s of each target)")
     print(f"EVAL {'':16} {'pos_err[mm]':>22} {'ori_err[rad]':>22} {'jitter[mm]':>12} {'joint_speed':>12} {'action_wiggle':>14}")
@@ -150,6 +146,11 @@ def main(env_cfg, agent_cfg: RslRlBaseRunnerCfg):
     env.close()
 
 
+def main():
+    env_cfg, agent_cfg = resolve_task_config(args_cli.task, args_cli.agent)
+    with launch_simulation(env_cfg, args_cli):
+        evaluate(env_cfg, agent_cfg)
+
+
 if __name__ == "__main__":
     main()
-    simulation_app.close()
