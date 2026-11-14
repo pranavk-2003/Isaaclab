@@ -23,3 +23,23 @@ gym.register(
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:A0509ReachPPORunnerCfg",
     },
 )
+
+gym.register(
+    id="Doosan-Reach-A0509-IK-Rel-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.ik_rel_env_cfg:A0509ReachIKRelEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:A0509ReachIKRelPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="Doosan-Reach-A0509-IK-Rel-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.ik_rel_env_cfg:A0509ReachIKRelEnvCfg_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:A0509ReachIKRelPPORunnerCfg",
+    },
+)

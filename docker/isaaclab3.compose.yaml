@@ -1,0 +1,26 @@
+# Isaac Lab 3.0 next to the 2.3.2 container. Paths are relative to docker/.
+name: isaaclab3                            # own Compose project: no shared volumes, no clash with isaac-lab-base
+services:
+  isaac-lab-3:
+    image: nvcr.io/nvidia/isaac-lab:3.0.0
+    container_name: isaac-lab-3
+    entrypoint: bash
+    stdin_open: true
+    tty: true
+    network_mode: host
+    environment: [ACCEPT_EULA=Y, PRIVACY_CONSENT=Y, NVIDIA_DRIVER_CAPABILITIES=all, DISPLAY, XAUTHORITY=/tmp/.Xauthority, MUJOCO_GL=disable]
+    volumes:
+      - ..:/workspace/learnings
+      - ../../isaaclab3_logs:/workspace/isaaclab/logs
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY}:/tmp/.Xauthority:ro
+      - kit-cache:/isaac-sim/kit/cache
+      - ov-cache:/root/.cache/ov
+      - gl-cache:/root/.cache/nvidia/GLCache
+      - compute-cache:/root/.nv/ComputeCache
+      - ov-data:/root/.local/share/ov/data
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+volumes: {kit-cache: {}, ov-cache: {}, gl-cache: {}, compute-cache: {}, ov-data: {}}
