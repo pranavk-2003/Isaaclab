@@ -98,7 +98,7 @@ def run_test(sim_cfg):
     spawn_each(cube_spawn, "Cube")
     cube = RigidObject(cfg=RigidObjectCfg(prim_path="/World/envs/env_.*/Cube", spawn=None))  # spawned above
 
-    robot_spawn = DOOSAN_A0509_AG95_CFG.spawn.replace(usd_path=args_cli.usd) if args_cli.usd else DOOSAN_A0509_AG95_CFG.spawn
+    robot_spawn = DOOSAN_A0509_AG95_CFG.spawn.replace(usd_path=args_cli.usd, fix_root_link=True) if args_cli.usd else DOOSAN_A0509_AG95_CFG.spawn
     spawn_each(robot_spawn, "Robot")
     robot = Articulation(cfg=DOOSAN_A0509_AG95_CFG.replace(prim_path="/World/envs/env_.*/Robot", spawn=None))
 

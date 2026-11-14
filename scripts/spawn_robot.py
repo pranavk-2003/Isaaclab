@@ -89,6 +89,7 @@ def run_test(sim_cfg):
         cfg.spawn.rigid_props.disable_gravity = False
     if args_cli.usd:
         cfg.spawn.usd_path = args_cli.usd
+        cfg.spawn.fix_root_link = True  # the 3.0 URDF build has no fixed root; this adds one at spawn time
     robot = Articulation(cfg=cfg)
 
     sim.reset()
