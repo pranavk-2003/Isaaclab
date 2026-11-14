@@ -16,11 +16,13 @@ Pattern follows IsaacLab/scripts/tutorials/01_assets/run_articulation.py.
 import argparse
 
 from isaaclab.app import add_launcher_args, launch_simulation
+from isaaclab.physics import PhysicsCfg
 
 parser = argparse.ArgumentParser(description="Spawn the A0509 + AG95 and test hold / step response / gripper mimic.")
 parser.add_argument("--num_robots", type=int, default=4)
 parser.add_argument("--cfg", choices=["base", "high_pd"], default="base")
 parser.add_argument("--gravity", action="store_true", help="Let the robot's own links feel gravity (default: off).")
+parser.add_argument("--physics", default="isaacsim_physx", choices=["isaacsim_physx", "newton_mjwarp"], help="Physics backend.")
 parser.add_argument("--usd", default=None, help="Test this USD instead of the composed asset (e.g. one built from the URDF).")
 parser.add_argument("--tol", type=float, default=0.01, help="Joint position tolerance in rad.")
 parser.add_argument("--step", type=float, default=0.3, help="Size of the arm step response in rad.")
@@ -76,11 +78,12 @@ def run_test(sim_cfg):
     light = sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75))
     light.func("/World/Light", light)
     origins = [[SPACING * i, 0.0, 0.0] for i in range(args_cli.num_robots)]
+    sim_utils.create_prim("/World/envs", "Xform")  # the per-robot instance layout both backends expect
     for i, origin in enumerate(origins):
-        sim_utils.create_prim(f"/World/Origin{i}", "Xform", translation=origin)
+        sim_utils.create_prim(f"/World/envs/env_{i}", "Xform", translation=origin)
 
     cfg = (DOOSAN_A0509_AG95_CFG if args_cli.cfg == "base" else DOOSAN_A0509_AG95_HIGH_PD_CFG).replace(
-        prim_path="/World/Origin.*/Robot"
+        prim_path="/World/envs/env_.*/Robot"
     )
     if args_cli.gravity:
         cfg.spawn.rigid_props.disable_gravity = False
@@ -90,7 +93,7 @@ def run_test(sim_cfg):
 
     sim.reset()
     origins_t = torch.tensor(origins, device=sim.device)
-    print(f"[INFO] cfg={args_cli.cfg} gravity={'ON' if args_cli.gravity else 'off'} | fixed base: {robot.is_fixed_base}"
+    print(f"[INFO] physics={args_cli.physics} cfg={args_cli.cfg} gravity={'ON' if args_cli.gravity else 'off'} | fixed base: {robot.is_fixed_base}"
           f" | {robot.num_joints} joints | {robot.num_bodies} bodies")
 
     # Default state, shifted to each robot's origin.
@@ -172,9 +175,8 @@ def run_test(sim_cfg):
 
 
 def main():
-    sim_cfg = sim_utils.SimulationCfg(dt=DT, device=args_cli.device)
-    with launch_simulation(sim_cfg, args_cli):
-        run_test(sim_cfg)
+    with launch_simulation(PhysicsCfg(), args_cli) as physics_cfg:  # --physics picks the backend
+        run_test(sim_utils.SimulationCfg(dt=DT, device=args_cli.device, physics=physics_cfg))
 
 
 if __name__ == "__main__":

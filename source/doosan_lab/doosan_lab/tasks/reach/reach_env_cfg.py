@@ -48,6 +48,11 @@ class A0509ReachEnvCfg(ReachEnvCfg):
 
         self.scene.robot = DOOSAN_A0509_AG95_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
+        # The template table starts 5 cm in front of the robot and is sized for a Franka mount; the A0509's wider base
+        # plate hung over its edge. Put the base 25 cm in from the near edge and keep the far edge past the farthest target.
+        self.scene.table.spawn.size = (1.1, 1.3, 1.0)
+        self.scene.table.init_state.pos = (0.30, 0.0, -0.5)
+
         # 30 Hz policy as in the template; 120 Hz physics, the rate the gripper was validated at.
         self.sim.dt = 1.0 / 120.0
         self.decimation = 4
