@@ -1,6 +1,6 @@
 """Merge Doosan's A0509 URDF with the expanded AG95 xacro into a0509_ag95.urdf.
 
-    ./isaaclab.sh -p /workspace/learnings/tools/build_urdf.py
+    isaaclab -p /workspace/learnings/tools/build_urdf.py
 """
 
 import os

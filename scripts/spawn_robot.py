@@ -21,6 +21,7 @@ parser = argparse.ArgumentParser(description="Spawn the A0509 + AG95 and test ho
 parser.add_argument("--num_robots", type=int, default=4)
 parser.add_argument("--cfg", choices=["base", "high_pd"], default="base")
 parser.add_argument("--gravity", action="store_true", help="Let the robot's own links feel gravity (default: off).")
+parser.add_argument("--usd", default=None, help="Test this USD instead of the composed asset (e.g. one built from the URDF).")
 parser.add_argument("--tol", type=float, default=0.01, help="Joint position tolerance in rad.")
 parser.add_argument("--step", type=float, default=0.3, help="Size of the arm step response in rad.")
 add_launcher_args(parser)
@@ -83,6 +84,8 @@ def run_test(sim_cfg):
     )
     if args_cli.gravity:
         cfg.spawn.rigid_props.disable_gravity = False
+    if args_cli.usd:
+        cfg.spawn.usd_path = args_cli.usd
     robot = Articulation(cfg=cfg)
 
     sim.reset()

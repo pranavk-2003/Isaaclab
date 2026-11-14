@@ -1,19 +1,22 @@
 """Compare the composed robot (from the reference USDs) with the one built from Doosan's URDF.
 
-    ./isaaclab.sh -p /workspace/learnings/scripts/compare_assets.py
+    isaaclab -p /workspace/learnings/scripts/compare_assets.py
 
 Joints and bodies are matched by name.
 """
 
 import argparse
+import contextlib
 
-from isaaclab.app import AppLauncher
+from isaaclab.app import launch_simulation
+from isaaclab.sim import SimulationCfg
 
 parser = argparse.ArgumentParser(description="Compare the composed robot with the one built from the URDF.")
 parser.add_argument("--b", default="/workspace/learnings/assets/urdf_build/a0509_ag95_from_urdf_mimic.usda",
                     help="The URDF-built asset (a single .usda from tools/urdf_to_usda.py).")
 args = parser.parse_args()
-app = AppLauncher(headless=True).app
+kit = contextlib.ExitStack()
+kit.enter_context(launch_simulation(SimulationCfg()))  # Kit provides pxr and the URDF importer
 
 from pxr import Gf, Usd, UsdGeom, UsdPhysics  # noqa: E402
 
@@ -116,4 +119,4 @@ for body in ["link_1", "link_2", "link_3", "link_4", "link_5", "link_6", "ag95_b
     fmt = lambda v: tuple(round(x, 4) for x in v) if v is not None else None  # noqa: E731
     print(f"COMPARE {body:<15} {A_NAME} {fmt(pa)}   {B_NAME} {fmt(pb)}   difference {gap * 1000:.2f} mm")
 
-app.close()
+kit.close()

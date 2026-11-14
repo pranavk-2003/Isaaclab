@@ -2,9 +2,9 @@
 
 Both source assets are referenced, not copied; this layer only adds overrides on top of them.
 
-    ./isaaclab.sh -p /workspace/learnings/tools/compose_a0509_ag95.py
-    ./isaaclab.sh -p /workspace/learnings/tools/compose_a0509_ag95.py --skip-fix
-    ./isaaclab.sh -p /workspace/learnings/tools/compose_a0509_ag95.py --validate-only <file.usda>
+    isaaclab -p /workspace/learnings/tools/compose_a0509_ag95.py
+    isaaclab -p /workspace/learnings/tools/compose_a0509_ag95.py --skip-fix
+    isaaclab -p /workspace/learnings/tools/compose_a0509_ag95.py --validate-only <file.usda>
 
 Set PYTHONUNBUFFERED=1 when piping the output.
 """
@@ -17,9 +17,13 @@ parser.add_argument("--validate-only", type=str, default=None, help="Skip compos
 args = parser.parse_args()
 
 # pxr can only be imported once Kit is running.
-from isaaclab.app import AppLauncher
+import contextlib
 
-app = AppLauncher(headless=True).app
+from isaaclab.app import launch_simulation
+from isaaclab.sim import SimulationCfg
+
+kit = contextlib.ExitStack()
+kit.enter_context(launch_simulation(SimulationCfg()))  # Kit provides pxr and the URDF importer
 
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade  # noqa: E402
 
@@ -279,4 +283,4 @@ else:
     compose(out, fix_dangling_joint=not args.skip_fix)
     validate(out)
 
-app.close()
+kit.close()
