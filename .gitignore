@@ -3,6 +3,7 @@ assets/**/*.usd
 assets/**/*.usda
 assets/**/*.urdf
 outputs/
+logs/
 datasets/
 *.hdf5
 wandb/

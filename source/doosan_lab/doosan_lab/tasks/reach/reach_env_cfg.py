@@ -2,11 +2,15 @@
 
 import math
 
+from isaaclab_physx.physics import PhysxCfg
+
+import isaaclab.envs.mdp as mdp
+from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
+from isaaclab.visualizers import VisualizerCfg
 
-import isaaclab_tasks.manager_based.manipulation.reach.mdp as mdp
-from isaaclab_tasks.manager_based.manipulation.reach.reach_env_cfg import ReachEnvCfg
+from isaaclab_tasks.core.reach.reach_env_cfg import ReachEnvCfg, ReachPhysicsCfg
 
 from doosan_lab.assets.doosan import DOOSAN_A0509_AG95_CFG
 
@@ -20,9 +24,27 @@ def arm_joints() -> SceneEntityCfg:
 
 
 @configclass
+class A0509ReachPhysicsCfg(ReachPhysicsCfg):
+    """The gripper's mimic joints were validated on PhysX, so it is the default; `physics=newton_mjwarp` still selects Newton."""
+
+    default: PhysxCfg = PhysxCfg(bounce_threshold_velocity=0.2)
+
+
+@configclass
 class A0509ReachEnvCfg(ReachEnvCfg):
     def __post_init__(self):
         super().__post_init__()
+
+        # Pin the MDP to the 2.3.2 definition the reach baseline was measured on (DECISIONS D16).
+        self.sim.physics = A0509ReachPhysicsCfg()
+        self.terminations.success = None
+        self.rewards.success = None
+        self.rewards.action_magnitude = None
+        self.rewards.end_effector_position_tracking_fine_grained = RewTerm(
+            func=mdp.position_command_error_tanh,
+            weight=0.1,
+            params={"asset_cfg": SceneEntityCfg("robot", body_names=[EE_BODY]), "std": 0.1, "command_name": "ee_pose"},
+        )
 
         self.scene.robot = DOOSAN_A0509_AG95_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
@@ -73,3 +95,4 @@ class A0509ReachEnvCfg_PLAY(A0509ReachEnvCfg):
         self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
         self.observations.policy.enable_corruption = False
+        self.sim.default_visualizer_cfg = VisualizerCfg(eye=(1.6, -1.4, 1.0), lookat=(0.4, 0.0, 0.3))

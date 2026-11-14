@@ -6,7 +6,10 @@ build-backend = "setuptools.build_meta"
 name = "doosan_lab"
 version = "0.1.0"
 description = "Doosan A0509 + DH AG95 learning project on Isaac Lab"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 
 [tool.setuptools.packages.find]
 include = ["doosan_lab*"]
+
+[project.entry-points."isaaclab.tasks"]
+doosan_lab = "doosan_lab.tasks"
